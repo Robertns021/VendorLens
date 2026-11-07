@@ -20,10 +20,9 @@ import type {
   RiskLevel,
 } from "./domain/models";
 
-import {
-  recentVendors,
-  riskDistribution,
-} from "./data/demoData";
+import { useVendors } from "./features/vendors/useVendors";
+import VendorManagement from "./features/vendors/VendorManagement";
+import type { RiskDistribution as RiskDistributionData, Vendor } from "./domain/models";
 
 // Navigation configuration
 const navigation = [
@@ -121,8 +120,13 @@ function RiskBadge({ level }: { level: RiskLevel }) {
 }
 
 // Risk distribution component
-function RiskDistribution() {
-  const { low, medium, high } = riskDistribution;
+function RiskDistribution({
+    distribution,
+  }: {
+    distribution: RiskDistributionData;
+  }) {
+  const { low, medium, high } = distribution;
+
   const total = low + medium + high;
 
   const lowEnd = (low / total) * 100;
@@ -296,18 +300,58 @@ function RecentVendors({
 
 // Main application
 function App() {
+
+  const {
+    vendors,
+    addVendor,
+    updateVendor,
+    deleteVendor,
+  } = useVendors();
+
   const [activeSection, setActiveSection] =
     useState<NavSection>("Dashboard");
 
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredVendors = useMemo(() => {
-    return recentVendors.filter((vendor) =>
-      vendor.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
+  const dashboardVendors = useMemo(() => {
+  return vendors
+    .filter((vendor): vendor is Vendor & {
+      latestAssessment: NonNullable<Vendor["latestAssessment"]>;
+    } => Boolean(vendor.latestAssessment))
+    .map((vendor) => ({
+      id: vendor.id,
+      name: vendor.name,
+      category: vendor.category,
+      score: vendor.latestAssessment.score,
+      riskLevel: vendor.latestAssessment.riskLevel,
+      lastAssessment: new Date(
+        vendor.latestAssessment.assessedAt
+      ).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+    }));
+}, [vendors]);
+
+  const riskCounts = useMemo(() => {
+    return vendors.reduce(
+      (counts, vendor) => {
+        if (vendor.latestAssessment) {
+          counts[vendor.latestAssessment.riskLevel]++;
+        }
+
+        return counts;
+      },
+      { low: 0, medium: 0, high: 0 }
     );
-  }, [searchTerm]);
+  }, [vendors]);
+
+  const filteredVendors = useMemo(() => {
+    return dashboardVendors.filter((vendor) =>
+      vendor.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [dashboardVendors, searchTerm]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 lg:flex">
@@ -424,7 +468,7 @@ function App() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                   title="Total vendors"
-                  value="24"
+                  value={String(vendors.length)}
                   description="Registered vendors"
                   icon={<Users size={20} />}
                   iconColor="bg-blue-50 text-blue-600"
@@ -432,7 +476,7 @@ function App() {
 
                 <StatCard
                   title="High risk"
-                  value="4"
+                  value={String(riskCounts.high)}
                   description="Require attention"
                   icon={<ShieldAlert size={20} />}
                   iconColor="bg-red-50 text-red-600"
@@ -440,7 +484,7 @@ function App() {
 
                 <StatCard
                   title="Medium risk"
-                  value="8"
+                  value={String(riskCounts.medium)}
                   description="Require monitoring"
                   icon={<Activity size={20} />}
                   iconColor="bg-amber-50 text-amber-600"
@@ -448,7 +492,7 @@ function App() {
 
                 <StatCard
                   title="Low risk"
-                  value="12"
+                  value={String(riskCounts.low)}
                   description="No major identified gaps"
                   icon={<CheckCircle2 size={20} />}
                   iconColor="bg-emerald-50 text-emerald-600"
@@ -457,7 +501,7 @@ function App() {
 
               {/* Risk chart */}
               <div className="mt-6">
-                <RiskDistribution />
+                <RiskDistribution distribution={riskCounts} />
               </div>
 
               {/* Recent assessments */}
@@ -473,6 +517,13 @@ function App() {
                 information and assessment results are fictional.
               </p>
             </>
+          ) :  activeSection === "Vendors" ? (
+            <VendorManagement
+              vendors={vendors}
+              onAdd={addVendor}
+              onUpdate={updateVendor}
+              onDelete={deleteVendor}
+            />
           ) : (
             <div className="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
