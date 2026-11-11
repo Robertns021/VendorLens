@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type {
+  AssessmentSummary,
   Vendor,
   VendorInput,
 } from "../../domain/models";
@@ -73,10 +74,31 @@ export function useVendors() {
     );
   }, []);
 
+  // UPDATE: Save the latest assessment result on a vendor.
+  const updateVendorAssessment = useCallback(
+    (id: string, summary: AssessmentSummary) => {
+      const now = new Date().toISOString();
+
+      setVendors((currentVendors) =>
+        currentVendors.map((vendor) =>
+          vendor.id === id
+            ? {
+                ...vendor,
+                latestAssessment: summary,
+                updatedAt: now,
+              }
+            : vendor
+        )
+      );
+    },
+    []
+  );
+
   return {
     vendors,
     addVendor,
     updateVendor,
     deleteVendor,
+    updateVendorAssessment,
   };
 }

@@ -1,4 +1,6 @@
-
+import AssessmentWizard from "./features/assessments/AssessmentWizard";
+import AssessmentManagement from "./features/assessments/AssessmentManagement";
+import { useAssessments } from "./features/assessments/useAssessments";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
@@ -300,18 +302,64 @@ function RecentVendors({
 
 // Main application
 function App() {
-
   const {
     vendors,
     addVendor,
     updateVendor,
     deleteVendor,
+    updateVendorAssessment,
   } = useVendors();
 
+  const {
+    assessments,
+    startAssessment,
+    updateAnswer,
+    completeAssessment,
+  } = useAssessments();
+  
   const [activeSection, setActiveSection] =
     useState<NavSection>("Dashboard");
 
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [selectedAssessmentId, setSelectedAssessmentId] =
+    useState<string | null>(null);
+
+  const selectedAssessment = assessments.find(
+    (assessment) => assessment.id === selectedAssessmentId
+  );
+
+  const selectedVendor = selectedAssessment
+    ? vendors.find((vendor) => vendor.id === selectedAssessment.vendorId)
+    : undefined;
+
+    // Start an assessment for a selected vendor.
+  function handleStartAssessment(vendor: Vendor) {
+    const assessment = startAssessment(vendor.id);
+
+    setSelectedAssessmentId(assessment.id);
+    setActiveSection("Assessments");
+  }
+
+  // Open an existing draft or completed assessment.
+  function handleOpenAssessment(assessmentId: string) {
+    setSelectedAssessmentId(assessmentId);
+  }
+
+  // Save the final result and update the vendor.
+  function handleCompleteAssessment() {
+    if (!selectedAssessment) {
+      return;
+    }
+
+    const result = completeAssessment(selectedAssessment.id);
+
+    updateVendorAssessment(selectedAssessment.vendorId, {
+      score: result.score,
+      riskLevel: result.level,
+      assessedAt: new Date().toISOString(),
+    });
+  }
 
   const dashboardVendors = useMemo(() => {
   return vendors
@@ -517,36 +565,49 @@ function App() {
                 information and assessment results are fictional.
               </p>
             </>
+
           ) :  activeSection === "Vendors" ? (
             <VendorManagement
               vendors={vendors}
               onAdd={addVendor}
               onUpdate={updateVendor}
               onDelete={deleteVendor}
+              onStartAssessment={handleStartAssessment}
             />
-          ) : (
+            ) : activeSection === "Assessments" ? (
+              selectedAssessment && selectedVendor ? (
+                <AssessmentWizard
+                  vendor={selectedVendor}
+                  assessment={selectedAssessment}
+                  onAnswerChange={(questionId, response) =>
+                    updateAnswer(
+                      selectedAssessment.id,
+                      questionId,
+                      response
+                    )
+                  }
+                  onComplete={handleCompleteAssessment}
+                  onCancel={() => setSelectedAssessmentId(null)}
+                />
+              ) : (
+                <AssessmentManagement
+                  assessments={assessments}
+                  vendors={vendors}
+                  onOpen={handleOpenAssessment}
+                />
+              )
+            ) : (          
             <div className="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                <LayoutDashboard size={24} />
-              </div>
-
-              <h1 className="mt-4 text-xl font-bold text-slate-900">
-                {activeSection}
+              <h1 className="text-xl font-bold text-slate-900">
+                Reports
               </h1>
 
-              <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-                This section is planned for a future development phase.
-                We're currently building the dashboard foundation.
+              <p className="mt-2 text-sm text-slate-500">
+                Detailed reporting and export functionality will be added
+                in a future development phase.
               </p>
-
-              <button
-                onClick={() => setActiveSection("Dashboard")}
-                className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-              >
-                Return to dashboard
-              </button>
             </div>
-          )}
+          )}            
         </main>
       </div>
     </div>

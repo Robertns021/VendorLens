@@ -8,6 +8,7 @@ import {
   Search,
   Trash2,
   X,
+  ClipboardCheck,
 } from "lucide-react";
 
 import type {
@@ -24,6 +25,7 @@ interface VendorManagementProps {
   onAdd: (input: VendorInput) => void;
   onUpdate: (id: string, input: VendorInput) => void;
   onDelete: (id: string) => void;
+  onStartAssessment: (vendor: Vendor) => void;
 }
 
 const riskStyles: Record<RiskLevel, string> = {
@@ -37,6 +39,7 @@ function VendorManagement({
   onAdd,
   onUpdate,
   onDelete,
+  onStartAssessment,
 }: VendorManagementProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] =
@@ -314,6 +317,16 @@ function VendorManagement({
 
                     <td className="px-5 py-4">
                       <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onStartAssessment(vendor)}
+                          aria-label={`Start assessment for ${vendor.name}`}
+                          title="Start security assessment"
+                          className="rounded-lg p-2 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600"
+                        >
+                          <ClipboardCheck size={17} />
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => openEditVendorForm(vendor)}
