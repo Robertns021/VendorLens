@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   ShieldAlert,
+  Printer,
 } from "lucide-react";
 
 import type {
@@ -119,12 +120,23 @@ function AssessmentWizard({
             </p>
           </div>
 
-          <button
-            onClick={onCancel}
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
-            Back to vendors
-          </button>
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              <Printer size={16} />
+              Print / Save PDF
+            </button>
+
+            <button
+              onClick={onCancel}
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              Back to vendors
+            </button>
+          </div>
         </div>
 
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -186,6 +198,65 @@ function AssessmentWizard({
                       style={{ width: `${score}%` }}
                     />
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="font-semibold text-slate-900">
+            Control assessment details
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Individual results for all assessed security and privacy controls.
+          </p>
+
+          <div className="mt-5 space-y-4">
+            {assessmentQuestions.map((question) => {
+              const response = assessment.answers[question.id];
+
+              const answerStyles = {
+                yes: "bg-emerald-50 text-emerald-700",
+                no: "bg-red-50 text-red-700",
+                unknown: "bg-amber-50 text-amber-700",
+              };
+
+              return (
+                <div
+                  key={question.id}
+                  className="rounded-lg border border-slate-100 p-4 print:break-inside-avoid"
+                >
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-slate-800">
+                      {question.title}
+                    </h3>
+
+                    <span
+                      className={`h-fit rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
+                        answerStyles[response.answer]
+                      }`}
+                    >
+                      {response.answer}
+                    </span>
+                  </div>
+
+                  <p className="mt-2 text-xs text-slate-500">
+                    {question.explanation}
+                  </p>
+
+                  {response.evidenceNote && (
+                    <div className="mt-3 rounded-md bg-slate-50 p-3">
+                      <p className="text-xs font-semibold text-slate-600">
+                        Evidence / assessment notes
+                      </p>
+
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">
+                        {response.evidenceNote}
+                      </p>
+                    </div>
+                  )}
                 </div>
               );
             })}

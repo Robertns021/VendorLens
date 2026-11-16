@@ -1,6 +1,7 @@
 import AssessmentWizard from "./features/assessments/AssessmentWizard";
 import AssessmentManagement from "./features/assessments/AssessmentManagement";
 import { useAssessments } from "./features/assessments/useAssessments";
+import Reports from "./features/reports/Reports";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import {
@@ -344,6 +345,7 @@ function App() {
   // Open an existing draft or completed assessment.
   function handleOpenAssessment(assessmentId: string) {
     setSelectedAssessmentId(assessmentId);
+    setActiveSection("Assessments");
   }
 
   // Save the final result and update the vendor.
@@ -404,7 +406,7 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 lg:flex">
       {/* Desktop sidebar */}
-      <aside className="hidden w-64 shrink-0 flex-col bg-slate-950 px-5 py-7 text-white lg:flex">
+      <aside className="hidden print:hidden w-64 shrink-0 flex-col bg-slate-950 px-5 py-7 text-white lg:flex">
         <div className="flex items-center gap-3 px-2">
           <div className="rounded-xl bg-blue-600 p-2.5">
             <ShieldCheck size={24} />
@@ -448,7 +450,7 @@ function App() {
       {/* Main content */}
       <div className="min-w-0 flex-1">
         {/* Header */}
-        <header className="flex h-20 items-center justify-between border-b border-slate-200 bg-white px-5 sm:px-8">
+        <header className="print:hidden flex h-20 items-center justify-between border-b border-slate-200 bg-white px-5 sm:px-8">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">
               {activeSection}
@@ -473,15 +475,11 @@ function App() {
                 className="w-64 rounded-lg border border-slate-200 bg-slate-50 py-2 pl-10 pr-3 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
               />
             </div>
-
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
-              VL
-            </div>
           </div>
         </header>
 
         {/* Mobile navigation */}
-        <div className="border-b border-slate-200 bg-slate-950 px-4 py-3 lg:hidden">
+        <div className="print:hidden border-b border-slate-200 bg-slate-950 px-4 py-3 lg:hidden">
           <div className="mb-3 flex items-center gap-2 text-white">
             <ShieldCheck size={20} className="text-blue-400" />
             <span className="font-bold">VendorLens</span>
@@ -597,16 +595,11 @@ function App() {
                 />
               )
             ) : (          
-            <div className="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-              <h1 className="text-xl font-bold text-slate-900">
-                Reports
-              </h1>
-
-              <p className="mt-2 text-sm text-slate-500">
-                Detailed reporting and export functionality will be added
-                in a future development phase.
-              </p>
-            </div>
+            <Reports
+              assessments={assessments}
+              vendors={vendors}
+              onOpenAssessment={handleOpenAssessment}
+            />
           )}            
         </main>
       </div>
