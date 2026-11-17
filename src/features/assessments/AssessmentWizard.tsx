@@ -337,7 +337,14 @@ function AssessmentWizard({
           </span>
         </div>
 
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+        <div
+          role="progressbar"
+          aria-label="Assessment completion"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress}
+          className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"
+        >
           <div
             className="h-full rounded-full bg-blue-600 transition-all"
             style={{ width: `${progress}%` }}
@@ -359,6 +366,9 @@ function AssessmentWizard({
                   )
               }
               onClick={() => setCurrentCategoryIndex(index)}
+              aria-current={
+                currentCategoryIndex === index ? "step" : undefined
+              }
               className={`rounded-lg border p-3 text-left text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
                 currentCategoryIndex === index
                   ? "border-blue-500 bg-blue-50 text-blue-700"

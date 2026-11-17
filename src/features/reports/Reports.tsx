@@ -1,3 +1,6 @@
+import Button from "../../components/ui/Button";
+import RiskBadge from "../../components/ui/RiskBadge";
+import PageHeader from "../../components/ui/PageHeader";
 import { useMemo } from "react";
 import {
   Activity,
@@ -22,12 +25,6 @@ interface ReportsProps {
   vendors: Vendor[];
   onOpenAssessment: (assessmentId: string) => void;
 }
-
-const riskStyles: Record<RiskLevel, string> = {
-  low: "bg-emerald-50 text-emerald-700",
-  medium: "bg-amber-50 text-amber-700",
-  high: "bg-red-50 text-red-700",
-};
 
 const riskColors: Record<RiskLevel, string> = {
   low: "bg-emerald-500",
@@ -132,29 +129,18 @@ function Reports({
   return (
     <div className="space-y-6">
       {/* Page heading */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Reports & Analytics
-          </h1>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Analyse vendor assessments and monitor identified risks.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          disabled={assessments.length === 0}
-          onClick={() =>
-            exportAssessmentsCsv(assessments, vendors)
-          }
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Download size={17} />
-          Export CSV
-        </button>
-      </div>
+      <PageHeader
+        title="Reports & Analytics"
+        description="Analyse vendor assessments and monitor identified risks."
+        action={
+          <Button
+            disabled={assessments.length === 0}
+            onClick={() => exportAssessmentsCsv(assessments, vendors)}>
+            <Download size={17} />
+            Export CSV
+          </Button>
+        }
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -399,11 +385,7 @@ function Reports({
 
                       <td className="px-5 py-4">
                         {result ? (
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${riskStyles[result.level]}`}
-                          >
-                            {result.level}
-                          </span>
+                          <RiskBadge level={result.level} />
                         ) : (
                           <span className="text-xs text-slate-400">
                             Pending

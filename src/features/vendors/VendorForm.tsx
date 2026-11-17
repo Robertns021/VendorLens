@@ -1,4 +1,6 @@
-
+import { validateVendorInput } from "../../domain/vendorValidation";
+import type { VendorValidationErrors } from "../../domain/vendorValidation";
+import Button from "../../components/ui/Button";
 import { useState } from "react";
 import type { FormEvent } from "react";
 
@@ -31,6 +33,9 @@ function VendorForm({
     initialVendor?.description ?? ""
   );
 
+  const [validationErrors, setValidationErrors] =
+    useState<VendorValidationErrors>({});
+
   const [dataClassification, setDataClassification] =
     useState<DataClassification>(
       initialVendor?.dataClassification ?? "internal"
@@ -46,6 +51,14 @@ function VendorForm({
       description: description.trim(),
       dataClassification,
     };
+
+    const errors = validateVendorInput(vendorInput);
+
+    setValidationErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
 
     onSubmit(vendorInput);
   }
@@ -80,10 +93,21 @@ function VendorForm({
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="e.g. Northstar Cloud"
-            required
             maxLength={100}
             className={inputClass}
+            aria-invalid={Boolean(validationErrors.name)}
+            aria-describedby={
+              validationErrors.name ? "vendor-name-error" : undefined
+            }
           />
+          {validationErrors.name && (
+            <p
+              id="vendor-name-error"
+              role="alert"
+              className="mt-1 text-xs text-red-600">
+              {validationErrors.name}
+            </p>
+          )}
         </div>
 
         <div>
@@ -96,12 +120,26 @@ function VendorForm({
 
           <input
             id="vendor-website"
-            type="url"
+            type="text"
+            inputMode="url"
             value={website}
             onChange={(event) => setWebsite(event.target.value)}
             placeholder="https://example.com"
             className={inputClass}
+            aria-invalid={Boolean(validationErrors.website)}
+            aria-describedby={
+              validationErrors.website ? "vendor-website-error" : undefined
+            }
           />
+          {validationErrors.website && (
+            <p
+              id="vendor-website-error"
+              role="alert"
+              className="mt-1 text-xs text-red-600"
+            >
+              {validationErrors.website}
+            </p>
+          )}
         </div>
 
         <div>
@@ -118,10 +156,22 @@ function VendorForm({
             value={category}
             onChange={(event) => setCategory(event.target.value)}
             placeholder="e.g. Cloud Storage"
-            required
             maxLength={80}
             className={inputClass}
+            aria-invalid={Boolean(validationErrors.category)}
+            aria-describedby={
+              validationErrors.category ? "vendor-category-error" : undefined
+            }
           />
+          {validationErrors.category && (
+            <p
+              id="vendor-category-error"
+              role="alert"
+              className="mt-1 text-xs text-red-600"
+            >
+              {validationErrors.category}
+            </p>
+          )}
         </div>
 
         <div>
@@ -171,20 +221,17 @@ function VendorForm({
       </div>
 
       <div className="mt-6 flex justify-end gap-3">
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={onCancel}
-          className="rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
         >
           Cancel
-        </button>
+        </Button>
 
-        <button
-          type="submit"
-          className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-        >
+        <Button type="submit">
           {initialVendor ? "Save changes" : "Add vendor"}
-        </button>
+        </Button>
       </div>
     </form>
   );

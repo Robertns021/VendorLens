@@ -1,4 +1,6 @@
-
+import Button from "../../components/ui/Button";
+import RiskBadge from "../../components/ui/RiskBadge";
+import PageHeader from "../../components/ui/PageHeader";
 import { useMemo, useState } from "react";
 import {
   Building2,
@@ -12,7 +14,6 @@ import {
 } from "lucide-react";
 
 import type {
-  RiskLevel,
   Vendor,
   VendorInput,
   VendorStatus,
@@ -27,12 +28,6 @@ interface VendorManagementProps {
   onDelete: (id: string) => void;
   onStartAssessment: (vendor: Vendor) => void;
 }
-
-const riskStyles: Record<RiskLevel, string> = {
-  low: "bg-emerald-50 text-emerald-700",
-  medium: "bg-amber-50 text-amber-700",
-  high: "bg-red-50 text-red-700",
-};
 
 function VendorManagement({
   vendors,
@@ -122,25 +117,16 @@ function VendorManagement({
   return (
     <div className="space-y-6">
       {/* Page heading */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Vendor management
-          </h1>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Manage your third-party service providers.
-          </p>
-        </div>
-
-        <button
-          onClick={openNewVendorForm}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-        >
-          <Plus size={18} />
-          Add vendor
-        </button>
-      </div>
+      <PageHeader
+        title="Vendor management"
+        description="Manage your third-party service providers."
+        action={
+          <Button onClick={openNewVendorForm}>
+            <Plus size={18} />
+            Add vendor
+          </Button>
+        }
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -282,11 +268,7 @@ function VendorManagement({
                     <td className="px-5 py-4">
                       {vendor.latestAssessment ? (
                         <div>
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${riskStyles[vendor.latestAssessment.riskLevel]}`}
-                          >
-                            {vendor.latestAssessment.riskLevel}
-                          </span>
+                          <RiskBadge level={vendor.latestAssessment.riskLevel} />
 
                           <p className="mt-1 text-xs text-slate-400">
                             {vendor.latestAssessment.score}/100

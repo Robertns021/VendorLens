@@ -1,75 +1,164 @@
-# React + TypeScript + Vite
+# VendorLens
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+### Vendor Security & Privacy Risk Assessment Platform
 
-Currently, two official plugins are available:
+VendorLens is a web application designed to help businesses assess third-party software vendors, identify security and privacy risks, and document assessment results.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The project demonstrates practical application development using React, TypeScript, risk-scoring algorithms, browser storage, automated testing and CI/CD.
 
-## React Compiler
+## Live Demo
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+https://robertns021.github.io/VendorLens/
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Vendor Management
+- Register, edit and delete vendors.
+- Search and filter vendor records.
+- Classify vendors by data sensitivity.
+- Store vendor information locally.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Security Assessments
+- 12-question security and privacy questionnaire.
+- Four assessment categories:
+  - Security
+  - Privacy
+  - Compliance
+  - Operational Resilience
+- Yes, No and Unknown responses.
+- Evidence notes for individual controls.
+- Saved assessment drafts.
+- Completed assessment history.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Risk Scoring
+- Transparent weighted risk calculation.
+- Individual category scores.
+- Automatic risk classification.
+- Recommendations based on identified weaknesses.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Reporting and Analytics
+- Risk distribution dashboard.
+- Average risk analysis.
+- Category-level risk breakdown.
+- Assessment history.
+- CSV export.
+- Printable assessment reports and PDF export.
 
+## Technology Stack
+
+| Technology | Purpose |
+|---|---|
+| React | User interface |
+| TypeScript | Application logic and type safety |
+| Vite | Development and production builds |
+| Tailwind CSS | Responsive UI styling |
+| Lucide React | Interface icons |
+| LocalStorage | Client-side data persistence |
+| Vitest | Automated testing |
+| ESLint | Code quality |
+| GitHub Actions | Automated deployment |
+
+## Risk Scoring Methodology
+
+Each assessment contains 12 weighted controls with a total weight of 100.
+
+Answer multipliers:
+
+| Answer | Multiplier |
+|---|---:|
+| Yes | 0 |
+| No | 1 |
+| Unknown | 0.5 |
+
+Risk score:
+
+Risk Score = Sum of (Question Weight × Answer Multiplier)
+
+Risk classification:
+
+| Score | Classification |
+|---|---|
+| 0–29 | Low |
+| 30–59 | Medium |
+| 60–100 | High |
+
+The scoring methodology is an illustrative portfolio implementation and is not an official certification or industry-standard assessment.
+
+## Getting Started
+
+Requirements:
+- Node.js (LTS recommended)
+- npm
+- Git
+
+Clone the repository:
+
+```bash
+git clone https://github.com/robertns021/VendorLens.git
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+Navigate to the project:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+cd VendorLens
 ```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start development server:
+
+```bash
+npm run dev
+```
+
+## Testing
+
+Run ESLint:
+
+```bash
+npm run lint
+```
+
+Run automated tests:
+
+```bash
+npm test
+```
+
+Build the production application:
+
+```bash
+npm run build
+```
+
+## Data and Privacy
+
+VendorLens currently uses browser LocalStorage.
+
+- Data is stored locally in the user's browser.
+- There is no backend or cloud database.
+- Data does not synchronise between devices or browsers.
+- Clearing browser storage can remove saved records.
+
+The application is a portfolio demonstration. Vendor names and example assessment data should be fictional. Do not enter sensitive business, security or personal information.
+
+## Project Purpose
+
+VendorLens was developed as a practical programming portfolio project to explore:
+
+- Component-based application architecture.
+- TypeScript data modelling.
+- State management and CRUD operations.
+- Risk assessment algorithms.
+- Automated testing.
+- Client-side data persistence.
+- Responsive application design.
+- Continuous integration and deployment.
+
+---
+
+Developed as an independent portfolio project.

@@ -53,6 +53,7 @@ function NavigationList({
           <button
             key={item.label}
             onClick={() => onSelect(item.label)}
+            aria-current={isActive ? "page" : undefined}
             className={`flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
               isActive
                 ? "bg-blue-600 text-white"
@@ -124,22 +125,13 @@ function RiskBadge({ level }: { level: RiskLevel }) {
 
 // Risk distribution component
 function RiskDistribution({
-    distribution,
-  }: {
-    distribution: RiskDistributionData;
-  }) {
+  distribution,
+}: {
+  distribution: RiskDistributionData;
+}) {
   const { low, medium, high } = distribution;
 
   const total = low + medium + high;
-
-  const lowEnd = (low / total) * 100;
-  const mediumEnd = ((low + medium) / total) * 100;
-
-  const chartBackground = `conic-gradient(
-    #10b981 0% ${lowEnd}%,
-    #f59e0b ${lowEnd}% ${mediumEnd}%,
-    #ef4444 ${mediumEnd}% 100%
-  )`;
 
   const categories = [
     {
@@ -159,58 +151,93 @@ function RiskDistribution({
     },
   ];
 
+  // Avoid division by zero when there are no completed assessments.
+  const lowEnd = total > 0 ? (low / total) * 100 : 0;
+  const mediumEnd =
+    total > 0 ? ((low + medium) / total) * 100 : 0;
+
+  const chartBackground = `conic-gradient(
+    #10b981 0% ${lowEnd}%,
+    #f59e0b ${lowEnd}% ${mediumEnd}%,
+    #ef4444 ${mediumEnd}% 100%
+  )`;
+
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
         <h2 className="font-semibold text-slate-900">
           Risk distribution
         </h2>
+
         <p className="mt-1 text-sm text-slate-500">
           Current vendor risk overview
         </p>
       </div>
 
-      <div className="mt-7 flex flex-col items-center gap-8 sm:flex-row sm:justify-around">
-        <div
-          className="relative h-40 w-40 shrink-0 rounded-full"
-          style={{ background: chartBackground }}
-        >
-          <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white">
-            <span className="text-3xl font-bold text-slate-900">
-              {total}
-            </span>
-            <span className="text-xs text-slate-500">
-              Total vendors
-            </span>
+      {total > 0 ? (
+        <div className="mt-7 flex flex-col items-center gap-8 sm:flex-row sm:justify-around">
+          {/* Donut chart */}
+          <div
+            className="relative h-40 w-40 shrink-0 rounded-full"
+            style={{ background: chartBackground }}
+          >
+            <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white">
+              <span className="text-3xl font-bold text-slate-900">
+                {total}
+              </span>
+
+              <span className="text-xs text-slate-500">
+                Assessed vendors
+              </span>
+            </div>
+          </div>
+
+          {/* Risk legend */}
+          <div className="w-full space-y-5">
+            {categories.map((category) => (
+              <div key={category.label}>
+                <div className="mb-2 flex justify-between text-sm">
+                  <span className="flex items-center gap-2 text-slate-600">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${category.color}`}
+                    />
+                    {category.label}
+                  </span>
+
+                  <span className="font-semibold text-slate-900">
+                    {category.value}
+                  </span>
+                </div>
+
+                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className={`h-full rounded-full ${category.color}`}
+                    style={{
+                      width: `${(category.value / total) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+      ) : (
+        <div className="mt-7 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
+          <Activity
+            size={30}
+            className="mx-auto text-slate-400"
+          />
 
-        <div className="w-full space-y-5">
-          {categories.map((category) => (
-            <div key={category.label}>
-              <div className="mb-2 flex justify-between text-sm">
-                <span className="flex items-center gap-2 text-slate-600">
-                  <span className={`h-2.5 w-2.5 rounded-full ${category.color}`} />
-                  {category.label}
-                </span>
+          <h3 className="mt-3 font-semibold text-slate-800">
+            No assessment data available
+          </h3>
 
-                <span className="font-semibold text-slate-900">
-                  {category.value}
-                </span>
-              </div>
-
-              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className={`h-full rounded-full ${category.color}`}
-                  style={{
-                    width: `${(category.value / total) * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
+          <p className="mt-2 text-sm text-slate-500">
+            Complete your first vendor security assessment to
+            see the risk distribution.
+          </p>
         </div>
-      </div>
+      )}
     </section>
   );
 }
@@ -485,10 +512,12 @@ function App() {
             <span className="font-bold">VendorLens</span>
           </div>
 
-          <NavigationList
-            activeSection={activeSection}
-            onSelect={setActiveSection}
-          />
+          <div className="overflow-x-auto">
+            <NavigationList
+              activeSection={activeSection}
+              onSelect={setActiveSection}
+            />
+          </div>
         </div>
 
         <main className="mx-auto max-w-7xl p-5 sm:p-8">
@@ -539,7 +568,7 @@ function App() {
                 <StatCard
                   title="Low risk"
                   value={String(riskCounts.low)}
-                  description="No major identified gaps"
+                  description="Low identified risk score"
                   icon={<CheckCircle2 size={20} />}
                   iconColor="bg-emerald-50 text-emerald-600"
                 />
