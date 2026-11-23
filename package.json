@@ -8,8 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test": "vitest run --exclude \"**/e2e/**\"",
+    "test:e2e": "playwright test",
+    "check": "npm run lint && npm test && npm run test:e2e && npm run build"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.4",
