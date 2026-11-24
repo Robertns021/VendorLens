@@ -7,85 +7,118 @@ import type {
 } from "../../domain/models";
 
 import {
-  loadVendors,
-  saveVendors,
-} from "../../lib/storage/localStorageRepository";
+  archiveVendor,
+  createVendor,
+  fetchVendors,
+  updateVendorRequest,
+} from "../../lib/api/vendors";
 
-function generateVendorId(): string {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-
-  return `vendor-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "An unexpected error occurred.";
 }
 
 export function useVendors() {
-  const [vendors, setVendors] = useState<Vendor[]>(loadVendors);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Save vendor changes whenever the list is updated.
+  // LOAD: retrieve vendors from the backend when the hook mounts.
   useEffect(() => {
-    saveVendors(vendors);
-  }, [vendors]);
+    let isCurrent = true;
+
+    async function loadData() {
+      try {
+        const data = await fetchVendors();
+
+        if (isCurrent) {
+          setVendors(data);
+          setError(null);
+        }
+      } catch (error) {
+        if (isCurrent) {
+          setError(getErrorMessage(error));
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadData();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   // CREATE
-  const addVendor = useCallback((input: VendorInput) => {
-    const now = new Date().toISOString();
+  const addVendor = useCallback(async (input: VendorInput) => {
+    try {
+      const newVendor = await createVendor(input);
 
-    const newVendor: Vendor = {
-      ...input,
-      id: generateVendorId(),
-      status: "active",
-      createdAt: now,
-      updatedAt: now,
-    };
+      setVendors((current) => [newVendor, ...current]);
+      setError(null);
 
-    setVendors((currentVendors) => [
-      newVendor,
-      ...currentVendors,
-    ]);
-
-    return newVendor;
+      return newVendor;
+    } catch (error) {
+      setError(getErrorMessage(error));
+      throw error;
+    }
   }, []);
 
   // UPDATE
   const updateVendor = useCallback(
-    (id: string, input: VendorInput) => {
-      const now = new Date().toISOString();
+    async (id: string, input: VendorInput) => {
+      try {
+        const updatedVendor = await updateVendorRequest(id, input);
 
-      setVendors((currentVendors) =>
-        currentVendors.map((vendor) =>
-          vendor.id === id
-            ? {
-                ...vendor,
-                ...input,
-                updatedAt: now,
-              }
-            : vendor
-        )
-      );
+        setVendors((current) =>
+          current.map((vendor) =>
+            vendor.id === id ? updatedVendor : vendor
+          )
+        );
+
+        setError(null);
+      } catch (error) {
+        setError(getErrorMessage(error));
+        throw error;
+      }
     },
     []
   );
 
-  // DELETE
-  const deleteVendor = useCallback((id: string) => {
-    setVendors((currentVendors) =>
-      currentVendors.filter((vendor) => vendor.id !== id)
-    );
+  // ARCHIVE
+  const deleteVendor = useCallback(async (id: string) => {
+    try {
+      const archivedVendor = await archiveVendor(id);
+
+      setVendors((current) =>
+        current.map((vendor) =>
+          vendor.id === id ? archivedVendor : vendor
+        )
+      );
+
+      setError(null);
+    } catch (error) {
+      setError(getErrorMessage(error));
+      throw error;
+    }
   }, []);
 
-  // UPDATE: Save the latest assessment result on a vendor.
+  // UPDATE: Keep the latest assessment summary in frontend state.
+  // Assessment persistence will be moved to the API in a later stage.
   const updateVendorAssessment = useCallback(
     (id: string, summary: AssessmentSummary) => {
-      const now = new Date().toISOString();
-
-      setVendors((currentVendors) =>
-        currentVendors.map((vendor) =>
+      setVendors((current) =>
+        current.map((vendor) =>
           vendor.id === id
             ? {
                 ...vendor,
                 latestAssessment: summary,
-                updatedAt: now,
+                updatedAt: new Date().toISOString(),
               }
             : vendor
         )
@@ -96,6 +129,8 @@ export function useVendors() {
 
   return {
     vendors,
+    isLoading,
+    error,
     addVendor,
     updateVendor,
     deleteVendor,
