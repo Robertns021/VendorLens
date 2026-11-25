@@ -19,27 +19,43 @@ function makeVendor(overrides: Partial<Vendor> = {}): Vendor {
   };
 }
 
-// Mock the vendor API so tests don't require a running backend.
+// Mock vendor API
 async function mockVendorsApi(
   page: Page,
   initialVendors: Vendor[] = []
 ) {
   const vendors = [...initialVendors];
 
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "http://127.0.0.1:5173",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
   await page.route("**/api/vendors", async (route) => {
     const method = route.request().method();
 
-    // GET: return the current test vendors.
+    // Handle browser CORS preflight requests.
+    if (method === "OPTIONS") {
+      await route.fulfill({
+        status: 204,
+        headers: corsHeaders,
+      });
+      return;
+    }
+
+    // GET: retrieve test vendors.
     if (method === "GET") {
       await route.fulfill({
         status: 200,
+        headers: corsHeaders,
         contentType: "application/json",
         body: JSON.stringify({ vendors }),
       });
       return;
     }
 
-    // POST: create a vendor and retain it for subsequent GET requests.
+    // POST: create and retain a test vendor.
     if (method === "POST") {
       const input = route.request().postDataJSON() as VendorInput;
       const now = new Date().toISOString();
@@ -56,6 +72,7 @@ async function mockVendorsApi(
 
       await route.fulfill({
         status: 201,
+        headers: corsHeaders,
         contentType: "application/json",
         body: JSON.stringify({ vendor }),
       });
