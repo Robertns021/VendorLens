@@ -12,7 +12,7 @@ import type {
 
 interface VendorFormProps {
   initialVendor?: Vendor;
-  onSubmit: (input: VendorInput) => void;
+  onSubmit: (input: VendorInput) => Promise<void>;
   onCancel: () => void;
 }
 
@@ -36,13 +36,18 @@ function VendorForm({
   const [validationErrors, setValidationErrors] =
     useState<VendorValidationErrors>({});
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const [dataClassification, setDataClassification] =
     useState<DataClassification>(
       initialVendor?.dataClassification ?? "internal"
     );
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isSubmitting) return;
 
     const vendorInput: VendorInput = {
       name: name.trim(),
@@ -53,14 +58,26 @@ function VendorForm({
     };
 
     const errors = validateVendorInput(vendorInput);
-
     setValidationErrors(errors);
 
     if (Object.keys(errors).length > 0) {
       return;
     }
 
-    onSubmit(vendorInput);
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await onSubmit(vendorInput);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Could not save vendor. Please try again."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -77,6 +94,15 @@ function VendorForm({
           Enter the vendor's basic information.
         </p>
       </div>
+
+      {submitError && (
+        <p
+          role="alert"
+          className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700"
+        >
+          {submitError}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         <div>
@@ -224,13 +250,19 @@ function VendorForm({
         <Button
           type="button"
           variant="secondary"
-          onClick={onCancel}
+          onClick={() => {
+            if (!isSubmitting) onCancel();
+          }}
         >
           Cancel
         </Button>
 
         <Button type="submit">
-          {initialVendor ? "Save changes" : "Add vendor"}
+          {isSubmitting
+            ? "Saving..."
+            : initialVendor
+              ? "Save changes"
+              : "Add vendor"}
         </Button>
       </div>
     </form>

@@ -336,6 +336,8 @@ function App() {
     updateVendor,
     deleteVendor,
     updateVendorAssessment,
+    isLoading: vendorsLoading,
+    error: vendorsError,
   } = useVendors();
 
   const {
@@ -600,6 +602,8 @@ function App() {
               onUpdate={updateVendor}
               onDelete={deleteVendor}
               onStartAssessment={handleStartAssessment}
+              isLoading={vendorsLoading}
+              error={vendorsError}
             />
             ) : activeSection === "Assessments" ? (
               selectedAssessment && selectedVendor ? (

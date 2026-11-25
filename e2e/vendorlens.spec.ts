@@ -1,6 +1,91 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+import type { Vendor, VendorInput } from "../src/domain/models";
+
+// Create predictable vendor data for browser tests.
+function makeVendor(overrides: Partial<Vendor> = {}): Vendor {
+  const now = "2026-01-01T10:00:00.000Z";
+
+  return {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Northstar Cloud",
+    website: "https://northstar.example",
+    category: "Cloud Hosting",
+    description: "A fictional cloud service provider.",
+    dataClassification: "confidential",
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+// Mock vendor API
+async function mockVendorsApi(
+  page: Page,
+  initialVendors: Vendor[] = []
+) {
+  const vendors = [...initialVendors];
+
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": "http://127.0.0.1:5173",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+
+  await page.route("**/api/vendors", async (route) => {
+    const method = route.request().method();
+
+    // Handle browser CORS preflight requests.
+    if (method === "OPTIONS") {
+      await route.fulfill({
+        status: 204,
+        headers: corsHeaders,
+      });
+      return;
+    }
+
+    // GET: retrieve test vendors.
+    if (method === "GET") {
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        contentType: "application/json",
+        body: JSON.stringify({ vendors }),
+      });
+      return;
+    }
+
+    // POST: create and retain a test vendor.
+    if (method === "POST") {
+      const input = route.request().postDataJSON() as VendorInput;
+      const now = new Date().toISOString();
+
+      const vendor: Vendor = {
+        ...input,
+        id: "22222222-2222-4222-8222-222222222222",
+        status: "active",
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      vendors.unshift(vendor);
+
+      await route.fulfill({
+        status: 201,
+        headers: corsHeaders,
+        contentType: "application/json",
+        body: JSON.stringify({ vendor }),
+      });
+      return;
+    }
+
+    await route.fallback();
+  });
+}
 
 test("dashboard loads successfully", async ({ page }) => {
+  await mockVendorsApi(page, [makeVendor()]);
+
   await page.goto("/");
 
   await expect(
@@ -12,7 +97,11 @@ test("dashboard loads successfully", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("user can create a vendor and retain it after refresh", async ({ page }) => {
+test("user can create a vendor and retain it after refresh", async ({
+  page,
+}) => {
+  await mockVendorsApi(page);
+
   await page.goto("/");
 
   await page.getByRole("button", { name: "Vendors" }).click();
@@ -44,7 +133,7 @@ test("user can create a vendor and retain it after refresh", async ({ page }) =>
     page.getByText("Playwright Test Vendor")
   ).toBeVisible();
 
-  // Verify that the vendor is still present after refreshing.
+  // Refresh and verify that the mocked API still returns the vendor.
   await page.reload();
 
   await page.getByRole("button", { name: "Vendors" }).click();
@@ -55,6 +144,8 @@ test("user can create a vendor and retain it after refresh", async ({ page }) =>
 });
 
 test("user can start a vendor security assessment", async ({ page }) => {
+  await mockVendorsApi(page, [makeVendor()]);
+
   await page.goto("/");
 
   await page.getByRole("button", { name: "Vendors" }).click();

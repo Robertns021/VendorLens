@@ -23,10 +23,12 @@ import VendorForm from "./VendorForm";
 
 interface VendorManagementProps {
   vendors: Vendor[];
-  onAdd: (input: VendorInput) => void;
-  onUpdate: (id: string, input: VendorInput) => void;
-  onDelete: (id: string) => void;
+  onAdd: (input: VendorInput) => Promise<Vendor>;
+  onUpdate: (id: string, input: VendorInput) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
   onStartAssessment: (vendor: Vendor) => void;
+  isLoading: boolean;
+  error: string | null;
 }
 
 function VendorManagement({
@@ -35,6 +37,8 @@ function VendorManagement({
   onUpdate,
   onDelete,
   onStartAssessment,
+  isLoading,
+  error,
 }: VendorManagementProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] =
@@ -86,23 +90,27 @@ function VendorManagement({
     setIsFormOpen(false);
   }
 
-  function handleSubmit(input: VendorInput) {
+  async function handleSubmit(input: VendorInput) {
     if (editingVendor) {
-      onUpdate(editingVendor.id, input);
+      await onUpdate(editingVendor.id, input);
     } else {
-      onAdd(input);
+      await onAdd(input);
     }
 
     closeForm();
   }
 
-  function handleDelete(vendor: Vendor) {
+  async function handleDelete(vendor: Vendor) {
     const confirmed = window.confirm(
-      `Are you sure you want to delete ${vendor.name}? This action cannot be undone.`
+      `Are you sure you want to archive ${vendor.name}? Its assessment history will be preserved.`
     );
 
     if (confirmed) {
-      onDelete(vendor.id);
+      try {
+        await onDelete(vendor.id);
+      } catch {
+        // The API error is displayed in the Vendor Management page.
+      }
     }
   }
 
@@ -127,6 +135,15 @@ function VendorManagement({
           </Button>
         }
       />
+
+      {error && (
+      <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
+          {error}
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -221,7 +238,13 @@ function VendorManagement({
             </thead>
 
             <tbody className="divide-y divide-slate-100">
-              {filteredVendors.length > 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
+                    Loading vendors from database...
+                  </td>
+                </tr>
+              ) : filteredVendors.length > 0 ? (
                 filteredVendors.map((vendor) => (
                   <tr
                     key={vendor.id}
