@@ -2,6 +2,7 @@ import express, { NextFunction, type ErrorRequestHandler } from "express";
 import cors from "cors";
 import { pool } from "./db.js";
 import { vendorsRouter } from "./routes/vendors.js";
+import { assessmentsRouter } from "./routes/assessments.js";
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.get("/api/health/db", async (_req, res, next) => {
 
 //Routes
 app.use("/api/vendors", vendorsRouter);
+app.use("/api/assessments", assessmentsRouter);
 
 // Handle unknown routes.
 app.use((_req, res) => {

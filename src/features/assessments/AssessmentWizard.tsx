@@ -26,8 +26,8 @@ interface AssessmentWizardProps {
   onAnswerChange: (
     questionId: string,
     response: QuestionResponse
-  ) => void;
-  onComplete: () => void;
+  ) => Promise<void>;
+  onComplete: () => Promise<void>;
   onCancel: () => void;
 }
 
@@ -70,6 +70,97 @@ function AssessmentWizard({
 }: AssessmentWizardProps) {
   const [currentCategoryIndex, setCurrentCategoryIndex] =
     useState(0);
+
+  // Keep evidence notes in the input while the user is typing.
+  const [evidenceNotes, setEvidenceNotes] = useState<
+    Record<string, string>
+  >(() =>
+    Object.fromEntries(
+      Object.entries(assessment.answers).map(([questionId, response]) => [
+        questionId,
+        response.evidenceNote ?? "",
+      ])
+    )
+  );
+
+  // Track API requests and errors.
+  const [savingQuestionId, setSavingQuestionId] =
+    useState<string | null>(null);
+
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  const [completionError, setCompletionError] =
+    useState<string | null>(null);
+
+  // Save an answer through the API.
+  async function persistAnswer(
+    questionId: string,
+    response: QuestionResponse
+  ) {
+    if (savingQuestionId !== null || isCompleting) {
+      return;
+    }
+
+    setSavingQuestionId(questionId);
+    setSaveError(null);
+
+    try {
+      await onAnswerChange(questionId, response);
+    } catch (error) {
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Could not save your answer."
+      );
+    } finally {
+      setSavingQuestionId(null);
+    }
+  }
+
+  // Save evidence notes when the user leaves the text field.
+  async function saveEvidenceNote(questionId: string) {
+    const response = assessment.answers[questionId];
+
+    if (!response) {
+      return;
+    }
+
+    const evidenceNote = evidenceNotes[questionId] ?? "";
+
+    // Don't send a request if nothing changed.
+    if (evidenceNote === (response.evidenceNote ?? "")) {
+      return;
+    }
+
+    await persistAnswer(questionId, {
+      ...response,
+      evidenceNote: evidenceNote || undefined,
+    });
+  }
+
+  // Complete the assessment through the backend.
+  async function handleComplete() {
+    if (isCompleting || savingQuestionId !== null) {
+      return;
+    }
+
+    setIsCompleting(true);
+    setCompletionError(null);
+
+    try {
+      await onComplete();
+    } catch (error) {
+      setCompletionError(
+        error instanceof Error
+          ? error.message
+          : "Could not complete the assessment."
+      );
+    } finally {
+      setIsCompleting(false);
+    }
+  }
 
   const answeredCount = assessmentQuestions.filter(
     (question) => Boolean(assessment.answers[question.id]?.answer)
@@ -325,6 +416,30 @@ function AssessmentWizard({
         </button>
       </div>
 
+      {savingQuestionId && (
+        <p role="status" className="text-sm text-blue-600">
+          Saving your answer...
+        </p>
+      )}
+
+      {saveError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+        >
+          Could not save your answer: {saveError}
+        </div>
+      )}
+
+      {completionError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+        >
+          Could not complete assessment: {completionError}
+        </div>
+      )}
+
       {/* Progress */}
       <section className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex justify-between text-sm">
@@ -442,12 +557,16 @@ function AssessmentWizard({
                         key={option.value}
                         type="button"
                         aria-pressed={selected}
-                        onClick={() =>
-                          onAnswerChange(question.id, {
+                        onClick={() => {
+                          const evidenceNote =
+                            evidenceNotes[question.id] ?? response?.evidenceNote;
+
+                          void persistAnswer(question.id, {
                             answer: option.value,
-                            evidenceNote: response?.evidenceNote,
-                          })
-                        }
+                            ...(evidenceNote ? { evidenceNote } : {}),
+                          });
+                        }}
+                        disabled={savingQuestionId !== null || isCompleting}
                         className={`rounded-lg border p-3 text-left transition ${
                           selected
                             ? option.selectedStyles
@@ -482,15 +601,25 @@ function AssessmentWizard({
                     id={`evidence-${question.id}`}
                     rows={2}
                     maxLength={500}
-                    disabled={!response}
-                    value={response?.evidenceNote ?? ""}
-                    onChange={(event) =>
-                      response &&
-                      onAnswerChange(question.id, {
-                        ...response,
-                        evidenceNote: event.target.value,
-                      })
+                    disabled={
+                      !response ||
+                      savingQuestionId !== null ||
+                      isCompleting
                     }
+                    value={
+                      evidenceNotes[question.id] ??
+                      response?.evidenceNote ??
+                      ""
+                    }
+                    onChange={(event) =>
+                      setEvidenceNotes((current) => ({
+                        ...current,
+                        [question.id]: event.target.value,
+                      }))
+                    }
+                    onBlur={() => {
+                      void saveEvidenceNote(question.id);
+                    }}
                     placeholder={
                       response
                         ? "Add a document reference or explanation..."
@@ -508,7 +637,11 @@ function AssessmentWizard({
         <div className="mt-8 flex flex-col-reverse justify-between gap-3 border-t border-slate-100 pt-5 sm:flex-row">
           <button
             type="button"
-            disabled={currentCategoryIndex === 0}
+            disabled={
+              currentCategoryIndex === 0 ||
+              savingQuestionId !== null ||
+              isCompleting
+            }
             onClick={() =>
               setCurrentCategoryIndex((current) => current - 1)
             }
@@ -521,7 +654,11 @@ function AssessmentWizard({
           {!isLastCategory ? (
             <button
               type="button"
-              disabled={!currentCategoryComplete}
+              disabled={
+                !currentCategoryComplete ||
+                savingQuestionId !== null ||
+                isCompleting
+              }
               onClick={() =>
                 setCurrentCategoryIndex((current) => current + 1)
               }
@@ -533,20 +670,26 @@ function AssessmentWizard({
           ) : (
             <button
               type="button"
-              disabled={answeredCount !== assessmentQuestions.length}
-              onClick={onComplete}
+              disabled={
+                answeredCount !== assessmentQuestions.length ||
+                savingQuestionId !== null ||
+                isCompleting
+              }
+              onClick={() => {
+                void handleComplete();
+              }}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ClipboardCheck size={17} />
-              Complete assessment
+              {isCompleting ? "Completing..." : "Complete assessment"}
             </button>
           )}
         </div>
       </section>
 
       <p className="text-center text-xs text-slate-400">
-        Your answers are saved automatically. All assessment data
-        is stored locally in this browser.
+        Your answers are saved automatically to the VendorLens database.
+        Evidence notes are saved when you leave the notes field.
       </p>
     </div>
   );

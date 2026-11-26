@@ -363,12 +363,16 @@ function App() {
     ? vendors.find((vendor) => vendor.id === selectedAssessment.vendorId)
     : undefined;
 
-    // Start an assessment for a selected vendor.
-  function handleStartAssessment(vendor: Vendor) {
-    const assessment = startAssessment(vendor.id);
+  // Start an assessment for a selected vendor.
+  async function handleStartAssessment(vendor: Vendor) {
+    try {
+      const assessment = await startAssessment(vendor.id);
 
-    setSelectedAssessmentId(assessment.id);
-    setActiveSection("Assessments");
+      setSelectedAssessmentId(assessment.id);
+      setActiveSection("Assessments");
+    } catch (error) {
+      console.error("Could not start assessment:", error);
+    }
   }
 
   // Open an existing draft or completed assessment.
@@ -378,12 +382,12 @@ function App() {
   }
 
   // Save the final result and update the vendor.
-  function handleCompleteAssessment() {
+  async function handleCompleteAssessment() {
     if (!selectedAssessment) {
       return;
     }
 
-    const result = completeAssessment(selectedAssessment.id);
+    const result = await completeAssessment(selectedAssessment.id);
 
     updateVendorAssessment(selectedAssessment.vendorId, {
       score: result.score,

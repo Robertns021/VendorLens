@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
   Assessment,
@@ -7,122 +7,169 @@ import type {
 } from "../../domain/models";
 
 import {
-  loadAssessments,
-  saveAssessments,
-} from "../../lib/storage/assessmentRepository";
+  completeAssessment as completeAssessmentRequest,
+  createAssessment,
+  fetchAssessments,
+  saveAssessmentAnswer,
+} from "../../lib/api/assessments";
 
-import { calculateRisk } from "../../domain/risk/calculateRisk";
-
-function generateAssessmentId(): string {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-
-  return `assessment-${Date.now()}-${Math.random()
-    .toString(16)
-    .slice(2)}`;
+// Convert different kinds of errors into readable messages.
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "An unexpected error occurred.";
 }
 
 export function useAssessments() {
-  const [assessments, setAssessments] =
-    useState<Assessment[]>(loadAssessments);
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
 
-  // Persist assessment changes.
+  const [isLoading, setIsLoading] = useState(true);
+
+  const [error, setError] = useState<string | null>(null);
+
+  // Keep answer saves for each assessment in a queue.
+  const saveQueues = useRef(new Map<string, Promise<void>>());
+
+  // LOAD: Retrieve assessments from PostgreSQL when the hook mounts.
   useEffect(() => {
-    saveAssessments(assessments);
-  }, [assessments]);
+    let isCurrent = true;
 
-  // CREATE: Start a new draft.
-  const startAssessment = useCallback(
-    (vendorId: string): Assessment => {
-      const newAssessment: Assessment = {
-        id: generateAssessmentId(),
-        vendorId,
-        questionnaireVersion: 1,
-        status: "draft",
-        answers: {},
-        createdAt: new Date().toISOString(),
-      };
+    async function loadData() {
+      try {
+        const data = await fetchAssessments();
+
+        if (isCurrent) {
+          setAssessments(data);
+          setError(null);
+        }
+      } catch (error) {
+        if (isCurrent) {
+          setError(getErrorMessage(error));
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadData();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  // CREATE: Start a new draft in PostgreSQL.
+  const startAssessment = useCallback(async (vendorId: string) => {
+    try {
+      const newAssessment = await createAssessment(vendorId);
 
       setAssessments((current) => [
         newAssessment,
         ...current,
       ]);
 
-      return newAssessment;
-    },
-    []
-  );
+      setError(null);
 
-  // UPDATE: Save an answer.
+      return newAssessment;
+    } catch (error) {
+      setError(getErrorMessage(error));
+      throw error;
+    }
+  }, []);
+
+  // UPDATE: Save an individual answer in PostgreSQL.
   const updateAnswer = useCallback(
-    (
+    async (
       assessmentId: string,
       questionId: string,
       response: QuestionResponse
     ) => {
-      setAssessments((current) =>
-        current.map((assessment) => {
-          if (
-            assessment.id !== assessmentId ||
-            assessment.status !== "draft"
-          ) {
-            return assessment;
-          }
+      // Wait for previous answer saves for this assessment.
+      const previousSave =
+        saveQueues.current.get(assessmentId) ?? Promise.resolve();
 
-          return {
-            ...assessment,
-            answers: {
-              ...assessment.answers,
-              [questionId]: response,
-            },
-          };
-        })
-      );
+      const currentSave = previousSave
+        .catch(() => undefined)
+        .then(async () => {
+          const updatedAssessment = await saveAssessmentAnswer(
+            assessmentId,
+            questionId,
+            response
+          );
+
+          // Synchronise React state with the server response.
+          setAssessments((current) =>
+            current.map((assessment) =>
+              assessment.id === assessmentId
+                ? updatedAssessment
+                : assessment
+            )
+          );
+        });
+
+      saveQueues.current.set(assessmentId, currentSave);
+
+      try {
+        await currentSave;
+        setError(null);
+      } catch (error) {
+        setError(getErrorMessage(error));
+        throw error;
+      } finally {
+        // Remove the queue once the last pending save has finished.
+        if (saveQueues.current.get(assessmentId) === currentSave) {
+          saveQueues.current.delete(assessmentId);
+        }
+      }
     },
     []
   );
 
-  // COMPLETE: Calculate and save the final result.
+  // COMPLETE: Ask the backend to calculate and save the final result.
   const completeAssessment = useCallback(
-    (assessmentId: string): RiskResult => {
-      const assessment = assessments.find(
-        (item) => item.id === assessmentId
-      );
+    async (assessmentId: string): Promise<RiskResult> => {
+      try {
+        // Wait until all previously queued answer saves finish.
+        const pendingSave = saveQueues.current.get(assessmentId);
 
-      if (!assessment) {
-        throw new Error("Assessment could not be found.");
+        if (pendingSave) {
+          await pendingSave;
+        }
+
+        const completedAssessment =
+          await completeAssessmentRequest(assessmentId);
+
+        if (!completedAssessment.result) {
+          throw new Error(
+            "The server completed the assessment but returned no risk result."
+          );
+        }
+
+        setAssessments((current) =>
+          current.map((assessment) =>
+            assessment.id === assessmentId
+              ? completedAssessment
+              : assessment
+          )
+        );
+
+        setError(null);
+
+        return completedAssessment.result;
+      } catch (error) {
+        setError(getErrorMessage(error));
+        throw error;
       }
-
-      if (assessment.status !== "draft") {
-        throw new Error("This assessment is already completed.");
-      }
-
-      // This throws an error if any question is unanswered.
-      const result = calculateRisk(assessment.answers);
-
-      const completedAt = new Date().toISOString();
-
-      setAssessments((current) =>
-        current.map((item) =>
-          item.id === assessmentId
-            ? {
-                ...item,
-                status: "completed",
-                completedAt,
-                result,
-              }
-            : item
-        )
-      );
-
-      return result;
     },
-    [assessments]
+    []
   );
 
   return {
     assessments,
+    isLoading,
+    error,
     startAssessment,
     updateAnswer,
     completeAssessment,
