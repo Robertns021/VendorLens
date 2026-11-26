@@ -81,6 +81,64 @@ async function mockVendorsApi(
 
     await route.fallback();
   });
+
+  // Mock the assessment API.
+  await page.route("**/api/assessments", async (route) => {
+    const method = route.request().method();
+    const origin = route.request().headers().origin ?? "*";
+
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    };
+
+    // Handle CORS preflight.
+    if (method === "OPTIONS") {
+      await route.fulfill({
+        status: 204,
+        headers: corsHeaders,
+      });
+      return;
+    }
+
+    // GET: return an empty assessment list.
+    if (method === "GET") {
+      await route.fulfill({
+        status: 200,
+        headers: corsHeaders,
+        contentType: "application/json",
+        body: JSON.stringify({ assessments: [] }),
+      });
+      return;
+    }
+
+    // POST: create a draft assessment.
+    if (method === "POST") {
+      const body = route.request().postDataJSON() as {
+        vendorId: string;
+      };
+
+      const assessment = {
+        id: "33333333-3333-4333-8333-333333333333",
+        vendorId: body.vendorId,
+        questionnaireVersion: 1,
+        status: "draft",
+        answers: {},
+        createdAt: new Date().toISOString(),
+      };
+
+      await route.fulfill({
+        status: 201,
+        headers: corsHeaders,
+        contentType: "application/json",
+        body: JSON.stringify({ assessment }),
+      });
+      return;
+    }
+
+    await route.fallback();
+  });
 }
 
 test("dashboard loads successfully", async ({ page }) => {
